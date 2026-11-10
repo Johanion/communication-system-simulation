@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSP Workbench - Module 1: Signal Generator & Time-Domain Analysis</title>
+  <!-- Tailwind CSS CDN for Dark Engineering Workbench UI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Plotly.js for Engineering Plotting -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Custom Oscilloscope Grid Background */
+    .oscilloscope-bg {
+      background-color: #080d1a;
+      background-image: 
+        linear-gradient(rgba(30, 41, 59, 0.45) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 41, 59, 0.45) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    input[type=range] {
+      accent-color: #06b6d4;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-cyan-500 selection:text-black">
+
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex flex-wrap items-center justify-between shadow-md">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-cyan-500/20">
+        <i data-lucide="activity" class="w-5 h-5 text-black"></i>
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-base font-bold tracking-tight text-white uppercase">DSP Lab Studio</h1>
+          <span class="text-xs bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded font-mono font-medium">STUDENT 1: TIME DOMAIN</span>
+        </div>
+        <p class="text-xs text-slate-400">Deterministic Signal Synthesis &amp; Inter-Module Interchange Bus</p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-3 mt-2 sm:mt-0 text-xs">
+      <button id="btnQuickSine" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-slate-300">Quick Sine (5 Hz)</button>
+      <button id="btnQuickPulse" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 text-slate-300">Test Pulse</button>
+      <span class="h-4 w-px bg-slate-700"></span>
+      <span id="nyquistBadge" class="px-2 py-1 bg-emerald-950 border border-emerald-700/60 text-emerald-400 rounded font-mono flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="nyquistText">Sampling: Verified</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Body Grid Layout -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 p-3 overflow-hidden">
+
+    <!-- LEFT PANEL: Signal Selector & Parameters (3 cols) -->
+    <aside class="lg:col-span-3 bg-slate-900/90 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-5rem)] custom-scrollbar">
+      
+      <!-- Signal Type Selection -->
+      <div>
+        <label class="text-xs font-semibold tracking-wider text-slate-400 uppercase flex items-center gap-1.5 mb-2">
+          <i data-lucide="waves" class="w-3.5 h-3.5 text-cyan-400"></i> Signal Waveform Type
+        </label>
+        <select id="signalTypeSelect" class="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-cyan-300 font-medium focus:outline-none focus:border-cyan-500">
+          <option value="sinusoidal">1. Sinusoidal [A·sin(2πft + φ)]</option>
+          <option value="cosine">2. Cosine [A·cos(2πft + φ)]</option>
+          <option value="square">3. Square Wave (with Duty Cycle)</option>
+          <option value="triangular">4. Triangular Wave</option>
+          <option value="sawtooth">5. Sawtooth Wave</option>
+          <option value="unit_step">6. Unit Step [A·u(t - t₀)]</option>
+          <option value="impulse">7. Unit Impulse Approximation</option>
+          <option value="ramp">8. Ramp Signal [A·(t - t₀)u(t - t₀)]</option>
+          <option value="dc">9. DC Signal [A + C]</option>
+          <option value="exponential">10. Exponential Growth / Decay</option>
+          <option value="rectangular_pulse">11. Rectangular Pulse</option>
+          <option value="sinc">12. Sinc Signal [Normalized / Sinc]</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-3 gap-2">
+        <button id="btnGenerate" class="col-span-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2 px-3 rounded text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-cyan-500/20 active:scale-95">
+          <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i> Generate Signal
+        </button>
+        <button id="btnReset" class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-2 rounded text-xs border border-slate-700 flex items-center justify-center gap-1">
+          <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset
+        </button>
+        <button id="btnRandomize" class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-2 rounded text-xs border border-slate-700 flex items-center justify-center gap-1">
+          <i data-lucide="shuffle" class="w-3 h-3"></i> Random
+        </button>
+        <label class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-2 rounded text-xs border border-slate-700 flex items-center justify-center gap-1 cursor-pointer">
+          <input type="checkbox" id="autoUpdateToggle" checked class="mr-1 accent-cyan-400"> Auto
+        </label>
+      </div>
+
+      <!-- Dynamic Parameter Controls -->
+      <div class="border-t border-slate-800 pt-3 space-y-3.5">
+        <div class="text-xs font-semibold tracking-wider text-slate-400 uppercase flex items-center justify-between">
+          <span>Parameters</span>
+          <span class="text-[10px] text-slate-500 font-normal">Context Sensitive</span>
+        </div>
+
+        <!-- Amplitude A -->
+        <div id="param_amplitude_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">Amplitude (A):</span>
+            <span id="val_amplitude" class="font-mono text-cyan-400">1.00 V</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_amplitude" min="0" max="10" step="0.1" value="1.0" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_amplitude" value="1.0" step="0.1" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+        </div>
+
+        <!-- Frequency f -->
+        <div id="param_frequency_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">Frequency (f):</span>
+            <span id="val_frequency" class="font-mono text-cyan-400">5.00 Hz</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_frequency" min="0.1" max="100" step="0.1" value="5.0" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_frequency" value="5.0" step="0.1" min="0" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+          <div class="text-[10px] text-slate-500 font-mono mt-0.5" id="val_omega">ω = 31.42 rad/s</div>
+        </div>
+
+        <!-- Phase phi -->
+        <div id="param_phase_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">Phase (φ):</span>
+            <span id="val_phase" class="font-mono text-cyan-400">0.0°</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_phase" min="-180" max="180" step="1" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_phase" value="0" step="1" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+        </div>
+
+        <!-- DC Offset C -->
+        <div id="param_dc_offset_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">DC Offset (C):</span>
+            <span id="val_dc_offset" class="font-mono text-cyan-400">0.00 V</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_dc_offset" min="-5" max="5" step="0.1" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_dc_offset" value="0.0" step="0.1" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+        </div>
+
+        <!-- Time Shift / Position (t0) -->
+        <div id="param_t0_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">Time Center / Delay (t₀):</span>
+            <span id="val_t0" class="font-mono text-cyan-400">0.00 s</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_t0" min="-2" max="2" step="0.05" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_t0" value="0.0" step="0.05" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+        </div>
+
+        <!-- Duty Cycle (for square wave) -->
+        <div id="param_duty_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">Duty Cycle:</span>
+            <span id="val_duty" class="font-mono text-cyan-400">50 %</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_duty" min="1" max="99" step="1" value="50" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_duty" value="50" min="1" max="99" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+        </div>
+
+        <!-- Pulse Width (rectangular pulse) -->
+        <div id="param_width_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">Pulse Width (τ):</span>
+            <span id="val_width" class="font-mono text-cyan-400">0.20 s</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_width" min="0.01" max="2" step="0.01" value="0.2" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_width" value="0.2" step="0.01" min="0.001" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+        </div>
+
+        <!-- Exponential Rate alpha & Growth/Decay mode -->
+        <div id="param_alpha_box">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 font-medium">Rate Constant (α):</span>
+            <span id="val_alpha" class="font-mono text-cyan-400">2.00 s⁻¹</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="slider_alpha" min="0.1" max="10" step="0.1" value="2.0" class="w-full h-1.5 bg-slate-800 rounded-lg">
+            <input type="number" id="num_alpha" value="2.0" step="0.1" class="w-16 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+          </div>
+          <div class="flex items-center gap-3 mt-2 text-xs">
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="expo_mode" value="decay" checked class="accent-cyan-400"> Decay [e^(-αt)]
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="expo_mode" value="growth" class="accent-cyan-400"> Growth [e^(+αt)]
+            </label>
+          </div>
+        </div>
+
+        <!-- Sinc Normalization -->
+        <div id="param_sinc_box">
+          <div class="flex items-center gap-3 text-xs">
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="sinc_mode" value="normalized" checked class="accent-cyan-400"> Normalized [sin(πt)/(πt)]
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="sinc_mode" value="unnormalized" class="accent-cyan-400"> Unnorm [sin(t)/t]
+            </label>
+          </div>
+        </div>
+
+        <!-- Sampling & Time Domain Configuration -->
+        <div class="border-t border-slate-800 pt-3 space-y-2.5">
+          <div class="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Sampling &amp; Time Domain</div>
+          
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <span class="text-slate-400 block mb-0.5">Start Time (s):</span>
+              <input type="number" id="num_start_time" value="0.0" step="0.1" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-200 font-mono">
+            </div>
+            <div>
+              <span class="text-slate-400 block mb-0.5">End Time (s):</span>
+              <input type="number" id="num_end_time" value="1.0" step="0.1" class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-200 font-mono">
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-400">Sampling Rate (Fs):</span>
+              <span id="val_fs" class="font-mono text-cyan-400">1000 Hz</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="range" id="slider_fs" min="20" max="5000" step="20" value="1000" class="w-full h-1.5 bg-slate-800 rounded-lg">
+              <input type="number" id="num_fs" value="1000" step="10" min="1" class="w-20 bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-xs text-right font-mono">
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-0.5">
+              <span id="val_dt">Δt = 1.000 ms</span>
+              <span id="val_fn">Nyquist F_N = 500 Hz</span>
+            </div>
+          </div>
+
+          <!-- Display Mode (Continuous vs Discrete Stems) -->
+          <div class="border-t border-slate-800 pt-2">
+            <span class="text-[11px] text-slate-400 font-semibold block mb-1">Visualization Mode</span>
+            <div class="grid grid-cols-3 gap-1 text-[11px]">
+              <button id="viewMode_both" class="px-2 py-1 bg-cyan-950 border border-cyan-700 text-cyan-300 rounded font-medium">Both</button>
+              <button id="viewMode_curve" class="px-2 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded">Analog</button>
+              <button id="viewMode_stems" class="px-2 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded">Samples</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- CENTER PANEL: Interactive Plot & Formula Banner (6 cols) -->
+    <section class="lg:col-span-6 flex flex-col gap-3 min-h-[500px]">
+      
+      <!-- Mathematical Equation Display Banner -->
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm">
+        <div class="flex items-center gap-2.5">
+          <div class="p-1.5 bg-cyan-950 border border-cyan-800 rounded text-cyan-400">
+            <i data-lucide="binary" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase font-mono tracking-wider text-slate-400">Live Mathematical Formulation</div>
+            <div id="equationDisplay" class="font-mono text-cyan-300 font-bold text-sm tracking-wide">
+              x(t) = 1.00 · sin(2π · 5.00 · t + 0.0°)
+            </div>
+          </div>
+        </div>
+        <div class="text-right flex items-center gap-2">
+          <span class="text-[11px] bg-slate-800 text-slate-400 px-2 py-1 rounded font-mono" id="equationCategory">Periodic</span>
+        </div>
+      </div>
+
+      <!-- Oscilloscope Graph Container -->
+      <div class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex flex-col relative shadow-inner oscilloscope-bg">
+        <!-- Plot controls overlay -->
+        <div class="flex items-center justify-between px-2 pb-2 text-xs border-b border-slate-800/80">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="text-slate-300 font-medium">Time-Domain Oscillogram x(t)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btnAutoscale" class="text-[11px] bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded border border-slate-700 text-slate-300">Autoscale</button>
+            <button id="btnZoomIn" class="text-[11px] bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300">+</button>
+            <button id="btnZoomOut" class="text-[11px] bg-slate-800 hover:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300">-</button>
+          </div>
+        </div>
+
+        <!-- The Plotly Target Canvas -->
+        <div id="plotCanvas" class="w-full flex-1 min-h-[380px]"></div>
+
+        <!-- Discontinuity note overlay (when applicable) -->
+        <div id="discontinuityNotice" class="hidden absolute bottom-4 left-4 bg-slate-900/90 border border-amber-600/70 text-amber-400 text-[11px] px-2.5 py-1 rounded shadow-lg flex items-center gap-1.5 backdrop-blur-sm">
+          <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+          <span>Piecewise continuous representation applied (discontinuities preserved).</span>
+        </div>
+      </div>
+
+      <!-- Bottom Sample Preview & Exchange Bus Tools -->
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+          <div class="flex items-center gap-2">
+            <i data-lucide="database" class="w-4 h-4 text-cyan-400"></i>
+            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Numerical Sample Preview (First 5 Samples)</span>
+          </div>
+          <span class="text-[11px] text-slate-500 font-mono" id="sampleCountPill">N = 1000 samples</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left font-mono text-[11px] text-slate-300">
+            <thead>
+              <tr class="text-slate-500 border-b border-slate-800">
+                <th class="py-1 px-2">Index [n]</th>
+                <th class="py-1 px-2">Time t [s]</th>
+                <th class="py-1 px-2">Amplitude x(t) [V]</th>
+                <th class="py-1 px-2">Phase Arg (rad)</th>
+              </tr>
+            </thead>
+            <tbody id="sampleTableBody">
+              <!-- Injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: Information, Rigorous Statistics & Interchange (3 cols) -->
+    <aside class="lg:col-span-3 bg-slate-900/90 border border-slate-800 rounded-lg p-4 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-5rem)] custom-scrollbar">
+      
+      <!-- Theoretical vs Numerical Statistics -->
+      <div>
+        <div class="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-400 uppercase mb-3">
+          <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-cyan-400"></i> Signal Properties &amp; Statistics
+        </div>
+        
+        <div class="space-y-2 text-xs">
+          <!-- Row: Signal Nature -->
+          <div class="bg-slate-950 p-2 rounded border border-slate-800 flex justify-between items-center">
+            <span class="text-slate-400">Class</span>
+            <span id="stat_nature" class="font-mono text-cyan-300 font-semibold">Periodic Continuous</span>
+          </div>
+
+          <!-- Row: Duration & Samples -->
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-slate-950 p-2 rounded border border-slate-800">
+              <span class="text-slate-500 block text-[10px]">Duration (T)</span>
+              <span id="stat_duration" class="font-mono text-slate-200 font-medium">1.000 s</span>
+            </div>
+            <div class="bg-slate-950 p-2 rounded border border-slate-800">
+              <span class="text-slate-500 block text-[10px]">Samples (N)</span>
+              <span id="stat_samples" class="font-mono text-cyan-400 font-medium">1000</span>
+            </div>
+          </div>
+
+          <!-- Row: Period & Frequency -->
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-slate-950 p-2 rounded border border-slate-800">
+              <span class="text-slate-500 block text-[10px]">Fundamental (T₀)</span>
+              <span id="stat_period" class="font-mono text-slate-200 font-medium">0.200 s</span>
+            </div>
+            <div class="bg-slate-950 p-2 rounded border border-slate-800">
+              <span class="text-slate-500 block text-[10px]">Frequency (f)</span>
+              <span id="stat_freq" class="font-mono text-slate-200 font-medium">5.00 Hz</span>
+            </div>
+          </div>
+
+          <!-- Theoretical vs Numerical Mean -->
+          <div class="bg-slate-950 p-2 rounded border border-slate-800">
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-400">Mean / DC Level:</span>
+              <span id="stat_mean_num" class="font-mono text-cyan-300">0.0000 V</span>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>Theoretical:</span>
+              <span id="stat_mean_theo">0.0000 V</span>
+            </div>
+          </div>
+
+          <!-- Theoretical vs Numerical RMS -->
+          <div class="bg-slate-950 p-2 rounded border border-slate-800">
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-400">RMS Value (V_rms):</span>
+              <span id="stat_rms_num" class="font-mono text-cyan-300">0.7071 V</span>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>Theoretical:</span>
+              <span id="stat_rms_theo">0.7071 V (A/√2)</span>
+            </div>
+          </div>
+
+          <!-- Min / Max / Peak-to-Peak -->
+          <div class="bg-slate-950 p-2 rounded border border-slate-800 space-y-1">
+            <div class="flex justify-between text-[11px]">
+              <span class="text-slate-400">Minimum:</span>
+              <span id="stat_min" class="font-mono text-slate-200">-1.0000 V</span>
+            </div>
+            <div class="flex justify-between text-[11px]">
+              <span class="text-slate-400">Maximum:</span>
+              <span id="stat_max" class="font-mono text-slate-200">+1.0000 V</span>
+            </div>
+            <div class="flex justify-between text-[11px] border-t border-slate-900 pt-1">
+              <span class="text-slate-400">Peak-to-Peak (V_pp):</span>
+              <span id="stat_vpp" class="font-mono text-emerald-400 font-semibold">2.0000 V</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Common Data Exchange (Module 1 -> Module 2, 3, 4) -->
+      <div class="border-t border-slate-800 pt-3 flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-1.5 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+            <i data-lucide="share-2" class="w-3.5 h-3.5 text-cyan-400"></i> Module Interchange Bus
+          </div>
+          <span class="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">v1.0 Standard</span>
+        </div>
+        
+        <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
+          Provides standard signal vectors directly consumable by Student 2 (Fourier Series), Student 3 (FFT Analyzer), and Student 4 (Convolution).
+        </p>
+
+        <!-- Export Buttons -->
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <button id="btnExportJSON" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 py-1.5 px-2 rounded text-xs text-slate-200 flex items-center justify-center gap-1">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-cyan-400"></i> Export JSON
+          </button>
+          <button id="btnExportCSV" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 py-1.5 px-2 rounded text-xs text-slate-200 flex items-center justify-center gap-1">
+            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-400"></i> Export CSV
+          </button>
+        </div>
+
+        <button id="btnCopyJSON" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 py-1.5 px-2 rounded text-xs text-slate-200 flex items-center justify-center gap-1 mb-2">
+          <i data-lucide="clipboard" class="w-3.5 h-3.5 text-blue-400"></i> Copy JSON to Clipboard
+        </button>
+
+        <!-- Import JSON Section -->
+        <div class="border-t border-slate-800/80 pt-2 mt-auto">
+          <label class="text-[10px] uppercase font-semibold text-slate-500 block mb-1">Import External / Stored Signal</label>
+          <input type="file" id="jsonFileInput" accept=".json" class="hidden">
+          <button id="btnTriggerImport" class="w-full bg-slate-950 hover:bg-slate-850 border border-dashed border-slate-700 py-2 px-2 rounded text-xs text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5">
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i> Load JSON Signal File
+          </button>
+          <div id="importStatus" class="text-[10px] text-emerald-400 font-mono mt-1 hidden text-center">✓ Signal Loaded & Verified</div>
+        </div>
+
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Interactive JavaScript Architecture -->
+  <script>
+    /**
+     * DSP SIMULATION ENGINE - MODULE 1 (STUDENT 1)
+     * Complete deterministic signal generator, numerical analyzer, and exchange bus.
+     */
+
+    // 1. GLOBAL STATE & PARAMETER REGISTRY
+    const state = {
+      signalType: 'sinusoidal',
+      amplitude: 1.0,
+      frequencyHz: 5.0,
+      phaseDegrees: 0.0,
+      dcOffset: 0.0,
+      startTimeSeconds: 0.0,
+      endTimeSeconds: 1.0,
+      samplingFrequencyHz: 1000,
+      t0: 0.0,
+      dutyCyclePercent: 50,
+      pulseWidthSeconds: 0.2,
+      alpha: 2.0,
+      expoMode: 'decay',
+      sincMode: 'normalized',
+      viewMode: 'both', // 'both', 'curve', 'stems'
+      autoUpdate: true
+    };
+
+    let generatedSignal = null;
+
+    // 2. MATHEMATICAL CORE GENERATOR (Pure Logic)
+    class SignalGenerator {
+      static generate(params) {
+        const {
+          signalType, amplitude, frequencyHz, phaseDegrees, dcOffset,
+          startTimeSeconds, endTimeSeconds, samplingFrequencyHz,
+          t0, dutyCyclePercent, pulseWidthSeconds, alpha, expoMode, sincMode
+        } = params;
+
+        // Validation & Safety guards
+        const Fs = Math.max(1, samplingFrequencyHz);
+        const tStart = Math.min(startTimeSeconds, endTimeSeconds);
+        const tEnd = Math.max(startTimeSeconds, endTimeSeconds);
+        const dt = 1.0 / Fs;
+
+        // Compute sample count (using standard [tStart, tEnd) half-open or closed depending on step)
+        let N = Math.round((tEnd - tStart) * Fs);
+        if (N < 2) N = 2;
+
+        const time = new Float64Array(N);
+        const amplitudeData = new Float64Array(N);
+        const phiRad = (phaseDegrees * Math.PI) / 180.0;
+        const omega = 2.0 * Math.PI * frequencyHz;
+        const duty = Math.min(Math.max(dutyCyclePercent / 100.0, 0.01), 0.99);
+
+        // Discontinuity indicator for smart non-interpolated rendering
+        let hasDiscontinuity = false;
+
+        for (let i = 0; i < N; i++) {
+          const t = tStart + i * dt;
+          time[i] = t;
+          let val = 0.0;
+
+          switch (signalType) {
+            case 'sinusoidal':
+              val = amplitude * Math.sin(omega * t + phiRad) + dcOffset;
+              break;
+
+            case 'cosine':
+              val = amplitude * Math.cos(omega * t + phiRad) + dcOffset;
+              break;
+
+            case 'square': {
+              hasDiscontinuity = true;
+              // Angle wrapped to [0, 2pi)
+              const theta = (omega * t + phiRad) % (2.0 * Math.PI);
+              const normTheta = theta < 0 ? theta + 2.0 * Math.PI : theta;
+              const threshold = 2.0 * Math.PI * duty;
+              val = (normTheta < threshold ? amplitude : -amplitude) + dcOffset;
+              break;
+            }
+
+            case 'triangular': {
+              // Normalized periodic triangle with period T = 1/f
+              const T = 1.0 / Math.max(0.0001, frequencyHz);
+              const shiftedTime = t + (phaseDegrees / 360.0) * T;
+              // Modulo in [0, T)
+              let modT = shiftedTime % T;
+              if (modT < 0) modT += T;
+              // Normalized to [-1, 1]
+              val = amplitude * (2.0 * Math.abs(2.0 * (modT / T - Math.floor(modT / T + 0.5))) - 1.0) + dcOffset;
+              break;
+            }
+
+            case 'sawtooth': {
+              hasDiscontinuity = true;
+              const T = 1.0 / Math.max(0.0001, frequencyHz);
+              const shiftedTime = t + (phaseDegrees / 360.0) * T;
+              let modT = shiftedTime % T;
+              if (modT < 0) modT += T;
+              // Linearly goes from -A to +A
+              val = amplitude * (2.0 * (modT / T) - 1.0) + dcOffset;
+              break;
+            }
+
+            case 'unit_step': {
+              hasDiscontinuity = true;
+              // Heavy-side step u(t - t0) with boundary u(0) = 1.0
+              val = (t >= t0 ? amplitude : 0.0) + dcOffset;
+              break;
+            }
+
+            case 'impulse': {
+              hasDiscontinuity = true;
+              // Numerical Kronecker/Dirac slice approximation:
+              // Height is scaled to A/dt so integral ∫ x(t) dt ≈ A
+              const isCenterSample = Math.abs(t - t0) <= (dt / 2.0);
+              val = (isCenterSample ? (amplitude / dt) : 0.0) + dcOffset;
+              break;
+            }
+
+            case 'ramp': {
+              // r(t - t0) = (t - t0)*u(t - t0)
+              val = (t >= t0 ? amplitude * (t - t0) : 0.0) + dcOffset;
+              break;
+            }
+
+            case 'dc': {
+              val = amplitude + dcOffset;
+              break;
+            }
+
+            case 'exponential': {
+              hasDiscontinuity = true;
+              if (t >= t0) {
+                const tau = t - t0;
+                const exponent = (expoMode === 'decay' ? -alpha : alpha) * tau;
+                val = amplitude * Math.exp(exponent) + dcOffset;
+              } else {
+                val = dcOffset;
+              }
+              break;
+            }
+
+            case 'rectangular_pulse': {
+              hasDiscontinuity = true;
+              // Centered around t0 with total width pulseWidthSeconds
+              const halfW = pulseWidthSeconds / 2.0;
+              val = (t >= (t0 - halfW) && t <= (t0 + halfW) ? amplitude : 0.0) + dcOffset;
+              break;
+            }
+
+            case 'sinc': {
+              const arg = t - t0;
+              if (sincMode === 'normalized') {
+                // Normalized sinc(t) = sin(pi * f * t) / (pi * f * t)
+                const piTerm = Math.PI * frequencyHz * arg;
+                val = (Math.abs(piTerm) < 1e-12 ? amplitude : amplitude * Math.sin(piTerm) / piTerm) + dcOffset;
+              } else {
+                // Unnormalized sinc(t) = sin(omega * t) / (omega * t)
+                const wTerm = omega * arg;
+                val = (Math.abs(wTerm) < 1e-12 ? amplitude : amplitude * Math.sin(wTerm) / wTerm) + dcOffset;
+              }
+              break;
+            }
+
+            default:
+              val = dcOffset;
+          }
+
+          amplitudeData[i] = val;
+        }
+
+        // Numerical Statistics Calculation
+        let min = Infinity;
+        let max = -Infinity;
+        let sum = 0.0;
+        let sumSq = 0.0;
+
+        for (let i = 0; i < N; i++) {
+          const v = amplitudeData[i];
+          if (v < min) min = v;
+          if (v > max) max = v;
+          sum += v;
+          sumSq += v * v;
+        }
+
+        const mean = sum / N;
+        const rms = Math.sqrt(sumSq / N);
+
+        // Theoretical formulation representation
+        const formulaMeta = SignalGenerator.getFormula(params);
+
+        return {
+          schemaVersion: "1.0",
+          signalId: "SIG-" + Math.random().toString(36).substring(2, 9).toUpperCase(),
+          signalType: signalType,
+          timestamp: new Date().toISOString(),
+          parameters: {
+            amplitude,
+            frequencyHz,
+            phaseDegrees,
+            dcOffset,
+            startTimeSeconds: tStart,
+            endTimeSeconds: tEnd,
+            samplingFrequencyHz: Fs,
+            t0,
+            dutyCyclePercent,
+            pulseWidthSeconds,
+            alpha,
+            expoMode,
+            sincMode
+          },
+          sampling: {
+            sampleCount: N,
+            timeStepSeconds: dt,
+            durationSeconds: tEnd - tStart,
+            nyquistFrequencyHz: Fs / 2.0
+          },
+          data: {
+            timeSeconds: Array.from(time),
+            amplitude: Array.from(amplitudeData)
+          },
+          statistics: {
+            minimum: min,
+            maximum: max,
+            peakToPeak: max - min,
+            mean: mean,
+            rms: rms
+          },
+          metadata: {
+            formulaString: formulaMeta.equation,
+            category: formulaMeta.category,
+            hasDiscontinuity: hasDiscontinuity,
+            theoretical: formulaMeta.theoretical
+          }
+        };
+      }
+
+      static getFormula(p) {
+        const A = p.amplitude.toFixed(2);
+        const f = p.frequencyHz.toFixed(2);
+        const phi = p.phaseDegrees.toFixed(1);
+        const C = p.dcOffset >= 0 ? `+ ${p.dcOffset.toFixed(2)}` : `- ${Math.abs(p.dcOffset).toFixed(2)}`;
+        const cOffsetVal = p.dcOffset;
+
+        switch (p.signalType) {
+          case 'sinusoidal':
+            return {
+              equation: `x(t) = ${A} · sin(2π·${f}·t + ${phi}°) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Periodic Continuous',
+              theoretical: {
+                mean: cOffsetVal,
+                rms: Math.sqrt(0.5 * p.amplitude * p.amplitude + cOffsetVal * cOffsetVal),
+                period: (1.0 / p.frequencyHz).toFixed(4) + ' s'
+              }
+            };
+          case 'cosine':
+            return {
+              equation: `x(t) = ${A} · cos(2π·${f}·t + ${phi}°) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Periodic Continuous',
+              theoretical: {
+                mean: cOffsetVal,
+                rms: Math.sqrt(0.5 * p.amplitude * p.amplitude + cOffsetVal * cOffsetVal),
+                period: (1.0 / p.frequencyHz).toFixed(4) + ' s'
+              }
+            };
+          case 'square':
+            return {
+              equation: `x(t) = ${A} · sqw(2π·${f}·t + ${phi}°, d=${p.dutyCyclePercent}%) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Periodic Piecewise',
+              theoretical: {
+                mean: (p.amplitude * (2 * (p.dutyCyclePercent / 100) - 1)) + cOffsetVal,
+                rms: Math.sqrt(p.amplitude * p.amplitude + cOffsetVal * cOffsetVal),
+                period: (1.0 / p.frequencyHz).toFixed(4) + ' s'
+              }
+            };
+          case 'triangular':
+            return {
+              equation: `x(t) = ${A} · tri(2π·${f}·t + ${phi}°) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Periodic Continuous',
+              theoretical: {
+                mean: cOffsetVal,
+                rms: Math.sqrt((p.amplitude * p.amplitude) / 3.0 + cOffsetVal * cOffsetVal),
+                period: (1.0 / p.frequencyHz).toFixed(4) + ' s'
+              }
+            };
+          case 'sawtooth':
+            return {
+              equation: `x(t) = ${A} · saw(2π·${f}·t + ${phi}°) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Periodic Discontinuous',
+              theoretical: {
+                mean: cOffsetVal,
+                rms: Math.sqrt((p.amplitude * p.amplitude) / 3.0 + cOffsetVal * cOffsetVal),
+                period: (1.0 / p.frequencyHz).toFixed(4) + ' s'
+              }
+            };
+          case 'unit_step':
+            return {
+              equation: `x(t) = ${A} · u(t - ${p.t0.toFixed(2)}s) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Aperiodic Singular',
+              theoretical: { mean: 'Interval dependent', rms: 'Interval dependent', period: 'N/A (Aperiodic)' }
+            };
+          case 'impulse':
+            return {
+              equation: `x(t) ≈ ${A} · δ_Δt(t - ${p.t0.toFixed(2)}s) [Area = ${A}]`,
+              category: 'Singular Distribution',
+              theoretical: { mean: 'Pulse Area / T', rms: 'Approximation dependent', period: 'N/A' }
+            };
+          case 'ramp':
+            return {
+              equation: `x(t) = ${A} · (t - ${p.t0.toFixed(2)}) · u(t - ${p.t0.toFixed(2)}) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Aperiodic Continuous',
+              theoretical: { mean: 'Interval dependent', rms: 'Interval dependent', period: 'N/A' }
+            };
+          case 'dc':
+            return {
+              equation: `x(t) = ${A} ${cOffsetVal !== 0 ? C : ''} = ${(p.amplitude + cOffsetVal).toFixed(2)} V`,
+              category: 'Constant',
+              theoretical: { mean: p.amplitude + cOffsetVal, rms: Math.abs(p.amplitude + cOffsetVal), period: 'Infinite' }
+            };
+          case 'exponential':
+            return {
+              equation: `x(t) = ${A} · e^(${p.expoMode === 'decay' ? '-' : '+'}${p.alpha.toFixed(1)}(t - ${p.t0.toFixed(2)})) · u(t - t₀)`,
+              category: 'Aperiodic Exponential',
+              theoretical: { mean: 'Interval dependent', rms: 'Interval dependent', period: 'N/A' }
+            };
+          case 'rectangular_pulse':
+            return {
+              equation: `x(t) = ${A} · rect((t - ${p.t0.toFixed(2)}) / ${p.pulseWidthSeconds.toFixed(2)}) ${cOffsetVal !== 0 ? C : ''}`,
+              category: 'Aperiodic Pulse',
+              theoretical: { mean: (p.amplitude * p.pulseWidthSeconds) / (p.endTimeSeconds - p.startTimeSeconds), rms: 'Interval dependent', period: 'N/A' }
+            };
+          case 'sinc':
+            return {
+              equation: p.sincMode === 'normalized' 
+                ? `x(t) = ${A} · sinc(π·${f}·(t - ${p.t0.toFixed(2)}))` 
+                : `x(t) = ${A} · sin(2π${f}(t - t₀)) / (2π${f}(t - t₀))`,
+              category: 'Energy Signal',
+              theoretical: { mean: 'Energy Signal (~0)', rms: 'Localized', period: 'N/A' }
+            };
+          default:
+            return { equation: 'x(t) = 0', category: 'Unknown', theoretical: {} };
+        }
+      }
+    }
+
+    // 3. UI CONTROLLER & PLOT ORCHESTRATION
+    class UIController {
+      static init() {
+        lucide.createIcons();
+        UIController.bindEvents();
+        UIController.syncUIFromState();
+        UIController.updateDynamicFieldVisibility();
+        UIController.generateAndRender();
+      }
+
+      static bindEvents() {
+        // Signal type dropdown
+        document.getElementById('signalTypeSelect').addEventListener('change', (e) => {
+          state.signalType = e.target.value;
+          UIController.updateDynamicFieldVisibility();
+          if (state.autoUpdate) UIController.generateAndRender();
+        });
+
+        // Numeric & Slider two-way bindings
+        const bindPair = (sliderId, numId, stateKey, parser = parseFloat) => {
+          const slider = document.getElementById(sliderId);
+          const num = document.getElementById(numId);
+          if (!slider || !num) return;
+
+          slider.addEventListener('input', (e) => {
+            const val = parser(e.target.value);
+            num.value = val;
+            state[stateKey] = val;
+            UIController.updateIndicators();
+            if (state.autoUpdate) UIController.generateAndRender();
+          });
+
+          num.addEventListener('input', (e) => {
+            const val = parser(e.target.value);
+            slider.value = val;
+            state[stateKey] = val;
+            UIController.updateIndicators();
+            if (state.autoUpdate) UIController.generateAndRender();
+          });
+        };
+
+        bindPair('slider_amplitude', 'num_amplitude', 'amplitude');
+        bindPair('slider_frequency', 'num_frequency', 'frequencyHz');
+        bindPair('slider_phase', 'num_phase', 'phaseDegrees');
+        bindPair('slider_dc_offset', 'num_dc_offset', 'dcOffset');
+        bindPair('slider_t0', 'num_t0', 't0');
+        bindPair('slider_duty', 'num_duty', 'dutyCyclePercent', parseInt);
+        bindPair('slider_width', 'num_width', 'pulseWidthSeconds');
+        bindPair('slider_alpha', 'num_alpha', 'alpha');
+        bindPair('slider_fs', 'num_fs', 'samplingFrequencyHz', parseInt);
+
+        // Start / End time inputs
+        document.getElementById('num_start_time').addEventListener('input', (e) => {
+          state.startTimeSeconds = parseFloat(e.target.value) || 0.0;
+          if (state.autoUpdate) UIController.generateAndRender();
+        });
+        document.getElementById('num_end_time').addEventListener('input', (e) => {
+          state.endTimeSeconds = parseFloat(e.target.value) || 1.0;
+          if (state.autoUpdate) UIController.generateAndRender();
+        });
+
+        // Exponential modes
+        document.querySelectorAll('input[name="expo_mode"]').forEach(r => {
+          r.addEventListener('change', (e) => {
+            state.expoMode = e.target.value;
+            if (state.autoUpdate) UIController.generateAndRender();
+          });
+        });
+
+        // Sinc modes
+        document.querySelectorAll('input[name="sinc_mode"]').forEach(r => {
+          r.addEventListener('change', (e) => {
+            state.sincMode = e.target.value;
+            if (state.autoUpdate) UIController.generateAndRender();
+          });
+        });
+
+        // Buttons
+        document.getElementById('btnGenerate').addEventListener('click', () => UIController.generateAndRender());
+        document.getElementById('btnReset').addEventListener('click', () => UIController.resetParameters());
+        document.getElementById('btnRandomize').addEventListener('click', () => UIController.randomizeParameters());
+        document.getElementById('autoUpdateToggle').addEventListener('change', (e) => {
+          state.autoUpdate = e.target.checked;
+        });
+
+        // Visualization View Modes
+        const setViewMode = (mode) => {
+          state.viewMode = mode;
+          ['both', 'curve', 'stems'].forEach(m => {
+            const btn = document.getElementById(`viewMode_${m}`);
+            if (m === mode) {
+              btn.className = "px-2 py-1 bg-cyan-950 border border-cyan-700 text-cyan-300 rounded font-medium";
+            } else {
+              btn.className = "px-2 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded";
+            }
+          });
+          UIController.renderPlot();
+        };
+
+        document.getElementById('viewMode_both').addEventListener('click', () => setViewMode('both'));
+        document.getElementById('viewMode_curve').addEventListener('click', () => setViewMode('curve'));
+        document.getElementById('viewMode_stems').addEventListener('click', () => setViewMode('stems'));
+
+        // Quick presets
+        document.getElementById('btnQuickSine').addEventListener('click', () => {
+          state.signalType = 'sinusoidal';
+          state.amplitude = 1.0;
+          state.frequencyHz = 5.0;
+          state.phaseDegrees = 0.0;
+          state.startTimeSeconds = 0.0;
+          state.endTimeSeconds = 1.0;
+          UIController.syncUIFromState();
+          UIController.updateDynamicFieldVisibility();
+          UIController.generateAndRender();
+        });
+
+        document.getElementById('btnQuickPulse').addEventListener('click', () => {
+          state.signalType = 'rectangular_pulse';
+          state.amplitude = 2.0;
+          state.t0 = 0.5;
+          state.pulseWidthSeconds = 0.2;
+          state.startTimeSeconds = 0.0;
+          state.endTimeSeconds = 1.0;
+          UIController.syncUIFromState();
+          UIController.updateDynamicFieldVisibility();
+          UIController.generateAndRender();
+        });
+
+        // Plot toolbar actions
+        document.getElementById('btnAutoscale').addEventListener('click', () => {
+          Plotly.relayout('plotCanvas', { 'xaxis.autorange': true, 'yaxis.autorange': true });
+        });
+        document.getElementById('btnZoomIn').addEventListener('click', () => {
+          const plot = document.getElementById('plotCanvas');
+          const curX = plot.layout.xaxis.range;
+          const delta = (curX[1] - curX[0]) * 0.2;
+          Plotly.relayout('plotCanvas', { 'xaxis.range': [curX[0] + delta, curX[1] - delta] });
+        });
+        document.getElementById('btnZoomOut').addEventListener('click', () => {
+          const plot = document.getElementById('plotCanvas');
+          const curX = plot.layout.xaxis.range;
+          const delta = (curX[1] - curX[0]) * 0.2;
+          Plotly.relayout('plotCanvas', { 'xaxis.range': [curX[0] - delta, curX[1] + delta] });
+        });
+
+        // Export and Interchange handlers
+        document.getElementById('btnExportJSON').addEventListener('click', () => UIController.exportJSON());
+        document.getElementById('btnExportCSV').addEventListener('click', () => UIController.exportCSV());
+        document.getElementById('btnCopyJSON').addEventListener('click', () => UIController.copyJSONToClipboard());
+        
+        // Import JSON file
+        const fileInput = document.getElementById('jsonFileInput');
+        document.getElementById('btnTriggerImport').addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => UIController.handleFileImport(e));
+      }
+
+      static syncUIFromState() {
+        document.getElementById('signalTypeSelect').value = state.signalType;
+        document.getElementById('slider_amplitude').value = state.amplitude;
+        document.getElementById('num_amplitude').value = state.amplitude;
+        document.getElementById('slider_frequency').value = state.frequencyHz;
+        document.getElementById('num_frequency').value = state.frequencyHz;
+        document.getElementById('slider_phase').value = state.phaseDegrees;
+        document.getElementById('num_phase').value = state.phaseDegrees;
+        document.getElementById('slider_dc_offset').value = state.dcOffset;
+        document.getElementById('num_dc_offset').value = state.dcOffset;
+        document.getElementById('slider_t0').value = state.t0;
+        document.getElementById('num_t0').value = state.t0;
+        document.getElementById('slider_duty').value = state.dutyCyclePercent;
+        document.getElementById('num_duty').value = state.dutyCyclePercent;
+        document.getElementById('slider_width').value = state.pulseWidthSeconds;
+        document.getElementById('num_width').value = state.pulseWidthSeconds;
+        document.getElementById('slider_alpha').value = state.alpha;
+        document.getElementById('num_alpha').value = state.alpha;
+        document.getElementById('slider_fs').value = state.samplingFrequencyHz;
+        document.getElementById('num_fs').value = state.samplingFrequencyHz;
+        document.getElementById('num_start_time').value = state.startTimeSeconds;
+        document.getElementById('num_end_time').value = state.endTimeSeconds;
+        UIController.updateIndicators();
+      }
+
+      static updateIndicators() {
+        document.getElementById('val_amplitude').textContent = `${state.amplitude.toFixed(2)} V`;
+        document.getElementById('val_frequency').textContent = `${state.frequencyHz.toFixed(2)} Hz`;
+        const omega = 2 * Math.PI * state.frequencyHz;
+        document.getElementById('val_omega').textContent = `ω = ${omega.toFixed(2)} rad/s`;
+        document.getElementById('val_phase').textContent = `${state.phaseDegrees.toFixed(1)}°`;
+        document.getElementById('val_dc_offset').textContent = `${state.dcOffset.toFixed(2)} V`;
+        document.getElementById('val_t0').textContent = `${state.t0.toFixed(2)} s`;
+        document.getElementById('val_duty').textContent = `${state.dutyCyclePercent} %`;
+        document.getElementById('val_width').textContent = `${state.pulseWidthSeconds.toFixed(2)} s`;
+        document.getElementById('val_alpha').textContent = `${state.alpha.toFixed(2)} s⁻¹`;
+        document.getElementById('val_fs').textContent = `${state.samplingFrequencyHz} Hz`;
+
+        const dtMs = (1000.0 / state.samplingFrequencyHz).toFixed(3);
+        const fNyquist = (state.samplingFrequencyHz / 2.0).toFixed(0);
+        document.getElementById('val_dt').textContent = `Δt = ${dtMs} ms`;
+        document.getElementById('val_fn').textContent = `Nyquist F_N = ${fNyquist} Hz`;
+
+        // Shannon-Nyquist Limit Checker
+        const isNyquistViolated = (state.signalType === 'sinusoidal' || state.signalType === 'cosine' || 
+                                   state.signalType === 'square' || state.signalType === 'triangular' || 
+                                   state.signalType === 'sawtooth' || state.signalType === 'sinc') &&
+                                  (state.frequencyHz >= state.samplingFrequencyHz / 2.0);
+
+        const badge = document.getElementById('nyquistBadge');
+        const badgeText = document.getElementById('nyquistText');
+
+        if (isNyquistViolated) {
+          badge.className = "px-2 py-1 bg-rose-950 border border-rose-700 text-rose-300 rounded font-mono flex items-center gap-1.5 animate-bounce";
+          badgeText.textContent = `Aliasing Warning (f ≥ Fs/2)!`;
+        } else {
+          badge.className = "px-2 py-1 bg-emerald-950 border border-emerald-700/60 text-emerald-400 rounded font-mono flex items-center gap-1.5";
+          badgeText.textContent = `Sampling: Verified`;
+        }
+      }
+
+      static updateDynamicFieldVisibility() {
+        const type = state.signalType;
+        const setVis = (id, visible) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = visible ? 'block' : 'none';
+        };
+
+        // Freq & Phase: periodic & sinc
+        const isPeriodic = ['sinusoidal', 'cosine', 'square', 'triangular', 'sawtooth', 'sinc'].includes(type);
+        setVis('param_frequency_box', isPeriodic);
+        setVis('param_phase_box', ['sinusoidal', 'cosine', 'square', 'triangular', 'sawtooth'].includes(type));
+
+        // Time delay t0
+        setVis('param_t0_box', ['unit_step', 'impulse', 'ramp', 'exponential', 'rectangular_pulse', 'sinc'].includes(type));
+
+        // Duty cycle: square wave only
+        setVis('param_duty_box', type === 'square');
+
+        // Rectangular pulse width
+        setVis('param_width_box', type === 'rectangular_pulse');
+
+        // Exponential alpha
+        setVis('param_alpha_box', type === 'exponential');
+
+        // Sinc settings
+        setVis('param_sinc_box', type === 'sinc');
+
+        UIController.updateIndicators();
+      }
+
+      static resetParameters() {
+        state.amplitude = 1.0;
+        state.frequencyHz = 5.0;
+        state.phaseDegrees = 0.0;
+        state.dcOffset = 0.0;
+        state.startTimeSeconds = 0.0;
+        state.endTimeSeconds = 1.0;
+        state.samplingFrequencyHz = 1000;
+        state.t0 = 0.0;
+        state.dutyCyclePercent = 50;
+        state.pulseWidthSeconds = 0.2;
+        state.alpha = 2.0;
+        UIController.syncUIFromState();
+        UIController.generateAndRender();
+      }
+
+      static randomizeParameters() {
+        state.amplitude = +(Math.random() * 4 + 0.5).toFixed(1);
+        state.frequencyHz = +(Math.random() * 15 + 1).toFixed(1);
+        state.phaseDegrees = Math.floor(Math.random() * 360 - 180);
+        state.dcOffset = +(Math.random() * 2 - 1).toFixed(1);
+        state.t0 = +(Math.random() * 0.6).toFixed(2);
+        state.pulseWidthSeconds = +(Math.random() * 0.4 + 0.05).toFixed(2);
+        UIController.syncUIFromState();
+        UIController.generateAndRender();
+      }
+
+      static generateAndRender() {
+        generatedSignal = SignalGenerator.generate(state);
+        UIController.updateStatsAndEquation();
+        UIController.renderPlot();
+        UIController.renderSampleTable();
+      }
+
+      static updateStatsAndEquation() {
+        const sig = generatedSignal;
+        const meta = sig.metadata;
+
+        // Equation display
+        document.getElementById('equationDisplay').textContent = meta.formulaString;
+        document.getElementById('equationCategory').textContent = meta.category;
+
+        // Stats sidebar
+        document.getElementById('stat_nature').textContent = meta.category;
+        document.getElementById('stat_duration').textContent = `${sig.sampling.durationSeconds.toFixed(3)} s`;
+        document.getElementById('stat_samples').textContent = `${sig.sampling.sampleCount}`;
+        
+        const periodText = meta.theoretical.period || (1.0 / sig.parameters.frequencyHz).toFixed(4) + ' s';
+        document.getElementById('stat_period').textContent = periodText;
+        document.getElementById('stat_freq').textContent = `${sig.parameters.frequencyHz.toFixed(2)} Hz`;
+
+        // Mean & RMS
+        document.getElementById('stat_mean_num').textContent = `${sig.statistics.mean.toFixed(4)} V`;
+        document.getElementById('stat_mean_theo').textContent = typeof meta.theoretical.mean === 'number' 
+          ? `${meta.theoretical.mean.toFixed(4)} V` 
+          : meta.theoretical.mean;
+
+        document.getElementById('stat_rms_num').textContent = `${sig.statistics.rms.toFixed(4)} V`;
+        document.getElementById('stat_rms_theo').textContent = typeof meta.theoretical.rms === 'number' 
+          ? `${meta.theoretical.rms.toFixed(4)} V` 
+          : meta.theoretical.rms;
+
+        document.getElementById('stat_min').textContent = `${sig.statistics.minimum.toFixed(4)} V`;
+        document.getElementById('stat_max').textContent = `${sig.statistics.maximum.toFixed(4)} V`;
+        document.getElementById('stat_vpp').textContent = `${sig.statistics.peakToPeak.toFixed(4)} V`;
+
+        // Discontinuity indicator
+        const discBox = document.getElementById('discontinuityNotice');
+        if (meta.hasDiscontinuity) {
+          discBox.classList.remove('hidden');
+        } else {
+          discBox.classList.add('hidden');
+        }
+      }
+
+      static renderPlot() {
+        if (!generatedSignal) return;
+
+        const time = generatedSignal.data.timeSeconds;
+        const amp = generatedSignal.data.amplitude;
+        const view = state.viewMode;
+        const traces = [];
+
+        // 1. Continuous Ideal Analogue Curve Trace
+        if (view === 'both' || view === 'curve') {
+          // For discontinuous signals (step, square, pulse), use stepped interpolation to prevent diagonal slant artifacts
+          const isStepStyle = ['square', 'unit_step', 'rectangular_pulse'].includes(state.signalType);
+
+          traces.push({
+            x: time,
+            y: amp,
+            mode: 'lines',
+            name: 'Ideal Continuous x(t)',
+            line: {
+              color: '#06b6d4',
+              width: 2.2,
+              shape: isStepStyle ? 'hv' : 'linear'
+            },
+            hoverinfo: 'x+y'
+          });
+        }
+
+        // 2. Discrete Sample Stems (Lollipop representation)
+        if (view === 'both' || view === 'stems') {
+          // Downsample stem display if count is massive to maintain buttery 60 FPS
+          const maxRenderStems = 300;
+          const step = Math.ceil(time.length / maxRenderStems);
+
+          const stemX = [];
+          const stemY = [];
+          for (let i = 0; i < time.length; i += step) {
+            stemX.push(time[i]);
+            stemY.push(amp[i]);
+          }
+
+          traces.push({
+            x: stemX,
+            y: stemY,
+            mode: 'markers',
+            name: 'Sample Points x[n]',
+            marker: {
+              color: '#38bdf8',
+              size: 4.5,
+              symbol: 'circle'
+            },
+            hoverinfo: 'x+y'
+          });
+        }
+
+        const layout = {
+          paper_bgcolor: 'rgba(0,0,0,0)',
+          plot_bgcolor: 'rgba(0,0,0,0)',
+          margin: { l: 50, r: 25, t: 30, b: 45 },
+          showlegend: true,
+          legend: {
+            orientation: 'h',
+            y: 1.12,
+            x: 0.0,
+            font: { color: '#94a3b8', size: 11 }
+          },
+          xaxis: {
+            title: { text: 'Time t (seconds)', font: { color: '#94a3b8', size: 11 } },
+            gridcolor: 'rgba(51, 65, 85, 0.45)',
+            zerolinecolor: '#38bdf8',
+            zerolinewidth: 1.5,
+            tickfont: { color: '#64748b', size: 10 },
+            autorange: true
+          },
+          yaxis: {
+            title: { text: 'Amplitude x(t) (Volts)', font: { color: '#94a3b8', size: 11 } },
+            gridcolor: 'rgba(51, 65, 85, 0.45)',
+            zerolinecolor: 'rgba(148, 163, 184, 0.6)',
+            zerolinewidth: 1.5,
+            tickfont: { color: '#64748b', size: 10 },
+            autorange: true
+          },
+          hovermode: 'closest'
+        };
+
+        const config = {
+          responsive: true,
+          displayModeBar: false
+        };
+
+        Plotly.react('plotCanvas', traces, layout, config);
+      }
+
+      static renderSampleTable() {
+        const body = document.getElementById('sampleTableBody');
+        const sig = generatedSignal;
+        const time = sig.data.timeSeconds;
+        const amp = sig.data.amplitude;
+        const omega = 2 * Math.PI * sig.parameters.frequencyHz;
+
+        document.getElementById('sampleCountPill').textContent = `Total: ${time.length} Samples (Δt = ${sig.sampling.timeStepSeconds.toFixed(5)}s)`;
+
+        let rowsHtml = '';
+        const previewCount = Math.min(5, time.length);
+        for (let i = 0; i < previewCount; i++) {
+          const t = time[i];
+          const val = amp[i];
+          const phase = ((omega * t) % (2 * Math.PI)).toFixed(3);
+          rowsHtml += `
+            <tr class="hover:bg-slate-800/50 border-b border-slate-900/60">
+              <td class="py-1 px-2 text-cyan-400">${i}</td>
+              <td class="py-1 px-2">${t.toFixed(4)}</td>
+              <td class="py-1 px-2 font-bold ${val >= 0 ? 'text-slate-200' : 'text-rose-400'}">${val.toFixed(4)}</td>
+              <td class="py-1 px-2 text-slate-500">${phase}</td>
+            </tr>
+          `;
+        }
+        body.innerHTML = rowsHtml;
+      }
+
+      // EXPORT & INTERCHANGE UTILITIES
+      static exportJSON() {
+        if (!generatedSignal) return;
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(generatedSignal, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `signal_${generatedSignal.signalType}_${Date.now()}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+      }
+
+      static exportCSV() {
+        if (!generatedSignal) return;
+        let csvContent = "data:text/csv;charset=utf-8,time_seconds,amplitude\n";
+        const t = generatedSignal.data.timeSeconds;
+        const y = generatedSignal.data.amplitude;
+        for (let i = 0; i < t.length; i++) {
+          csvContent += `${t[i].toFixed(6)},${y[i].toFixed(6)}\n`;
+        }
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `signal_${generatedSignal.signalType}_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      static copyJSONToClipboard() {
+        if (!generatedSignal) return;
+        navigator.clipboard.writeText(JSON.stringify(generatedSignal, null, 2)).then(() => {
+          const btn = document.getElementById('btnCopyJSON');
+          const original = btn.innerHTML;
+          btn.innerHTML = `<span class="text-emerald-400 font-bold">✓ Copied to Clipboard!</span>`;
+          setTimeout(() => { btn.innerHTML = original; }, 2000);
+        });
+      }
+
+      static handleFileImport(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (!imported.schemaVersion || !imported.parameters || !imported.data) {
+              throw new Error("Invalid DSP Interchange Schema format.");
+            }
+
+            // Restore state from imported parameters
+            const p = imported.parameters;
+            state.signalType = imported.signalType || state.signalType;
+            state.amplitude = p.amplitude ?? state.amplitude;
+            state.frequencyHz = p.frequencyHz ?? state.frequencyHz;
+            state.phaseDegrees = p.phaseDegrees ?? state.phaseDegrees;
+            state.dcOffset = p.dcOffset ?? state.dcOffset;
+            state.startTimeSeconds = p.startTimeSeconds ?? state.startTimeSeconds;
+            state.endTimeSeconds = p.endTimeSeconds ?? state.endTimeSeconds;
+            state.samplingFrequencyHz = p.samplingFrequencyHz ?? state.samplingFrequencyHz;
+            state.t0 = p.t0 ?? state.t0;
+            state.dutyCyclePercent = p.dutyCyclePercent ?? state.dutyCyclePercent;
+            state.pulseWidthSeconds = p.pulseWidthSeconds ?? state.pulseWidthSeconds;
+            state.alpha = p.alpha ?? state.alpha;
+
+            UIController.syncUIFromState();
+            UIController.updateDynamicFieldVisibility();
+            UIController.generateAndRender();
+
+            const status = document.getElementById('importStatus');
+            status.classList.remove('hidden');
+            setTimeout(() => status.classList.add('hidden'), 3500);
+          } catch (err) {
+            alert("Error importing signal file: " + err.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    // Launch application when DOM is ready
+    window.addEventListener('DOMContentLoaded', () => {
+      UIController.init();
+    });
+  </script>
+</body>
+</html>

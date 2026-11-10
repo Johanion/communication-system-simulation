@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+:root {
+  --pale-yellow: #FFF6B0;
+  --mint: #AAEED3;
+  --teal: #55A9A0;
+  --deep-teal: #2A7B73;
+  --page-bg: #F3FAF7;
+  --card-bg: #FFFFFF;
+  --text-dark-teal: #123A36;
+}
+
+[data-theme="dark"] {
+  --pale-yellow: #FFE580;
+  --mint: #4FA899;
+  --teal: #4ED3C0;
+  --deep-teal: #58C2B3;
+  --page-bg: #0B1917;
+  --card-bg: #122724;
+  --text-dark-teal: #E5F6F1;
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--page-bg);
+  color: var(--text-dark-teal);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: 'Poppins', sans-serif;
+}
+
+code, kbd, samp, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(170, 238, 211, 0.2);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(85, 169, 160, 0.4);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(42, 123, 115, 0.7);
+}
+
+/* Accessibility focus rings */
+:focus-visible {
+  outline: 2px solid var(--deep-teal);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   Dark Theme Rules (Clean dark teal-gray palette)
+   Preserves identical light theme visuals when data-theme="light"
+   ========================================================= */
+
+[data-theme="dark"] body {
+  background-color: #0B1917;
+  color: #E5F6F1;
+}
+
+/* Page, cards, sidebar and header dark backgrounds */
+[data-theme="dark"] .bg-\[\#F3FAF7\] {
+  background-color: #0B1917 !important;
+}
+
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-white\/95,
+[data-theme="dark"] .bg-white\/98,
+[data-theme="dark"] .bg-white\/90 {
+  background-color: #122724 !important;
+}
+
+[data-theme="dark"] .bg-\[\#FAFCFB\] {
+  background-color: #0B1917 !important;
+}
+
+[data-theme="dark"] .bg-\[\#E1F3EC\] {
+  background-color: #193632 !important;
+}
+
+[data-theme="dark"] .bg-\[\#F3E8FF\] {
+  background-color: #281537 !important;
+}
+
+/* Primary, secondary and accent text */
+[data-theme="dark"] .text-\[\#123A36\] {
+  color: #E5F6F1 !important;
+}
+
+[data-theme="dark"] .text-\[\#123A36\]\/80,
+[data-theme="dark"] .text-\[\#123A36\]\/75,
+[data-theme="dark"] .text-\[\#123A36\]\/70,
+[data-theme="dark"] .text-\[\#123A36\]\/60 {
+  color: #89C7BC !important;
+}
+
+[data-theme="dark"] .text-\[\#2A7B73\] {
+  color: #58C2B3 !important;
+}
+
+[data-theme="dark"] .text-\[\#9333EA\] {
+  color: #D8B4FE !important;
+}
+
+/* Soft, clean borders on dark surfaces */
+[data-theme="dark"] .border-\[\#AAEED3\],
+[data-theme="dark"] .border-\[\#AAEED3\]\/80,
+[data-theme="dark"] .border-\[\#AAEED3\]\/60,
+[data-theme="dark"] .border-\[\#AAEED3\]\/50,
+[data-theme="dark"] .border-\[\#AAEED3\]\/40,
+[data-theme="dark"] .border-\[\#AAEED3\]\/30 {
+  border-color: rgba(88, 194, 179, 0.28) !important;
+}
+
+[data-theme="dark"] .border-\[\#123A36\]\/30,
+[data-theme="dark"] .border-\[\#123A36\]\/40 {
+  border-color: rgba(229, 246, 241, 0.25) !important;
+}
+
+[data-theme="dark"] .border-\[\#9333EA\]\/30,
+[data-theme="dark"] .border-\[\#9333EA\]\/35 {
+  border-color: rgba(216, 180, 254, 0.35) !important;
+}
+
+/* Hover and active tints */
+[data-theme="dark"] .hover\:bg-\[\#AAEED3\]\/20:hover,
+[data-theme="dark"] .hover\:bg-\[\#AAEED3\]\/30:hover,
+[data-theme="dark"] .hover\:bg-\[\#AAEED3\]\/15:hover {
+  background-color: rgba(88, 194, 179, 0.16) !important;
+}
+
+[data-theme="dark"] .bg-\[\#AAEED3\]\/30,
+[data-theme="dark"] .bg-\[\#AAEED3\]\/40,
+[data-theme="dark"] .bg-\[\#AAEED3\]\/20 {
+  background-color: rgba(88, 194, 179, 0.18) !important;
+}
+
+/* Form controls in dark mode */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] select {
+  background-color: #0E1F1D !important;
+  color: #E5F6F1 !important;
+  border-color: rgba(88, 194, 179, 0.35) !important;
+}
+
+/* Topic E Plot canvases and SVG crisp rendering */
+[data-theme="dark"] svg line[stroke="#123A36"] {
+  stroke: #89C7BC !important;
+  stroke-opacity: 0.45 !important;
+}
+
+[data-theme="dark"] svg text.fill-\[\#123A36\]\/60 {
+  fill: #89C7BC !important;
+  fill-opacity: 0.85 !important;
+}
+
+[data-theme="dark"] svg path[stroke="#2A7B73"] {
+  stroke: #4ED3C0 !important;
+}
+
+[data-theme="dark"] svg circle[stroke="#2A7B73"] {
+  stroke: #4ED3C0 !important;
+}
+
+/* Soft shadows for dark mode elevation */
+[data-theme="dark"] .shadow-sm,
+[data-theme="dark"] .shadow-md,
+[data-theme="dark"] .shadow-xs,
+[data-theme="dark"] .shadow-2xs {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .shadow-xl,
+[data-theme="dark"] .shadow-2xl {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: rgba(18, 39, 36, 0.7);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(88, 194, 179, 0.3);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(88, 194, 179, 0.5);
+}

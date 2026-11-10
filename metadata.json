@@ -1,0 +1,8 @@
+{
+  "name": "Group 3 Simulator",
+  "description": "Signals \u0026 Systems Interactive Laboratory featuring real-time in-browser Fourier Transform (FFT \u0026 DFT), interactive winding phasor animations, and synchronized signal analysis across modules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
