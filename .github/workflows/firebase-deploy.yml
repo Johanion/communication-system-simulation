@@ -1,0 +1,42 @@
+
+name: Deploy Frontend to Firebase
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Download repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Build React + Vite application
+      - name: Build application
+        run: npm run build
+
+      # 5. Deploy to Firebase Hosting
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_COMMUNICATION_SIMULATION }}"
+          projectId: communication-simulation
+          channelId: live
